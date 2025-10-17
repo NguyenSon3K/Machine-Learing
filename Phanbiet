@@ -1,0 +1,59 @@
+from google.colab import drive
+drive.mount('/content/drive')
+import os
+import cv2
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+import matplotlib.pyplot as plt
+def load_images_from_folder(folder, label, size=(64, 64)):
+    images, labels = [], []
+    for filename in os.listdir(folder):
+        path = os.path.join(folder, filename)
+        img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+        if img is not None:
+            img = cv2.resize(img, size)
+            images.append(img.flatten())  # chuyển ảnh 2D thành vector 1D
+            labels.append(label)
+    return images, labels
+# Đường dẫn thư mục trong Google Drive
+base_dir = '/content/drive/MyDrive/hocmay/Training'
+male_dir = os.path.join(base_dir, 'male')
+female_dir = os.path.join(base_dir, 'female')
+
+# Đọc ảnh và gán nhãn
+X_male, y_male = load_images_from_folder(male_dir, 0)
+X_female, y_female = load_images_from_folder(female_dir, 1)
+
+# Gộp dữ liệu
+X = np.array(X_male + X_female)
+y = np.array(y_male + y_female)
+
+# Chia train/test
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+# Chuẩn hoá giá trị pixel về [0,1]
+X_train = X_train / 255.0
+X_test = X_test / 255.0
+
+print("Số mẫu train:", X_train.shape[0])
+print("Số mẫu test:", X_test.shape[0])
+model = LogisticRegression(max_iter=1000, solver='lbfgs')
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+
+print("📊 Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+print("\n📈 Classification Report:")
+print(classification_report(y_test, y_pred))
+print("✅ Accuracy:", accuracy_score(y_test, y_pred))
+fig, axes = plt.subplots(2, 5, figsize=(12,6))
+for i, ax in enumerate(axes.flat):
+    idx = np.random.randint(0, len(X_test))
+    ax.imshow(X_test[idx].reshape(64,64), cmap='gray')
+    ax.set_title(f"True: {y_test[idx]} / Pred: {y_pred[idx]}")
+    ax.axis('off')
+plt.show()
